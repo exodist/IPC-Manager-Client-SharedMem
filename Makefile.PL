@@ -476,7 +476,7 @@ EOM
 }
 
 my %WriteMakefileArgs = (
-  "ABSTRACT" => "SysV shared memory client protocol for IPC::Manager.",
+  "ABSTRACT" => "SysV shared memory as a message store",
   "AUTHOR" => "Chad Granum <exodist\@cpan.org>",
   "CONFIGURE_REQUIRES" => {
     "ExtUtils::MakeMaker" => 0
