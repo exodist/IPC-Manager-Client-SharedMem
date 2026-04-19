@@ -1,0 +1,5 @@
+{{$NEXT}}
+
+0.000001  2026-04-19
+
+    - Initial release, split out from IPC::Manager 0.000026
