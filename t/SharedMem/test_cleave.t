@@ -17,6 +17,6 @@ require IPC::Manager::Client::SharedMem;
 
 use lib 't/lib';
 use IPC::Manager::Test;
-IPC::Manager::Test->run_all(protocol => 'SharedMem');
+IPC::Manager::Test->run_one(protocol => 'SharedMem', test => 'test_cleave');
 
 done_testing;
