@@ -420,6 +420,56 @@ sub peers {
     return sort @out;
 }
 
+# Opportunistic sweep of stale peer registrations.  Called by
+# IPC::Manager::Role::Service whenever peer_delta reports a peer left.
+# Walks the clients map, removes entries whose recorded pid is gone
+# (pid_is_running == 0), and cleans up their messages + stats.  Skips
+# self and never reaps foreign-but-running pids (pid_is_running == -1)
+# or live local pids (== 1).  Returns the number of entries reaped.
+sub peer_left {
+    my $self = shift;
+
+    my $state;
+    unless (eval { $state = $self->_lock_write; 1 }) {
+        warn $@;
+        return 0;
+    }
+
+    my $removed = 0;
+    my $ok      = eval {
+        my $my_id = $self->{id};
+        for my $peer_id (keys %{$state->{clients}}) {
+            next if $peer_id eq $my_id;
+            my $data = $state->{clients}{$peer_id};
+            my $pid  = $data ? $data->{pid} : undef;
+            next unless $pid;
+            next unless pid_is_running($pid) == 0;
+
+            delete $state->{clients}{$peer_id};
+            delete $state->{messages}{$peer_id};
+            delete $state->{stats}{$peer_id};
+            $removed++;
+        }
+
+        if ($removed) {
+            $self->_commit($state);
+        }
+        else {
+            $self->_unlock;
+        }
+        1;
+    };
+
+    unless ($ok) {
+        my $err = $@;
+        $self->_unlock;
+        warn $err;
+        return 0;
+    }
+
+    return $removed;
+}
+
 sub peer_exists {
     my $self = shift;
     my ($peer_id) = @_;
