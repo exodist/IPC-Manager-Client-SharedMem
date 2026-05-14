@@ -14,6 +14,7 @@ use Carp qw/croak/;
 
 use IPC::Manager::Message;
 use IPC::Manager::Serializer::JSON;
+use IPC::Manager::Util qw/pid_is_running/;
 
 use parent 'IPC::Manager::Client';
 use Object::HashBase qw{
@@ -299,9 +300,25 @@ sub init {
             }
         }
         else {
-            if ($state->{clients}{$id}) {
-                $self->{disconnected} = 1;
-                croak "Client '$id' already exists";
+            if (my $existing = $state->{clients}{$id}) {
+                my $epid = $existing->{pid};
+                # Reap-and-replace: if the existing registration belongs
+                # to a pid that is genuinely gone (SIGKILL, segfault,
+                # OOM, parent-exit cascade -- anything that bypasses
+                # Perl's DESTROY) drop the stale entry and proceed with
+                # a fresh registration.  Foreign-but-running pids
+                # (pid_is_running == -1) and live local pids
+                # (pid_is_running == 1) are legitimate collisions and
+                # still croak.
+                if ($epid && pid_is_running($epid) == 0) {
+                    delete $state->{clients}{$id};
+                    delete $state->{messages}{$id};
+                    delete $state->{stats}{$id};
+                }
+                else {
+                    $self->{disconnected} = 1;
+                    croak "Client '$id' already exists";
+                }
             }
             $state->{clients}{$id} = {pid => $$};
             $state->{messages}{$id} //= [];
