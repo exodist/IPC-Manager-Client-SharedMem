@@ -404,7 +404,20 @@ sub send_message {
 sub peers {
     my $self  = shift;
     my $state = $self->_lock_read;
-    return sort grep { $_ ne $self->{id} } keys %{$state->{clients}};
+    my $my_id = $self->{id};
+    my @out;
+    for my $peer_id (keys %{$state->{clients}}) {
+        next if $peer_id eq $my_id;
+        # Skip peers whose recorded pid is genuinely gone.  peer_left
+        # will reap them on the next service tick.  Foreign-but-running
+        # pids (pid_is_running == -1) stay listed -- only certain-dead
+        # entries (== 0) are filtered.
+        my $data = $state->{clients}{$peer_id};
+        my $pid  = $data ? $data->{pid} : undef;
+        next if $pid && pid_is_running($pid) == 0;
+        push @out, $peer_id;
+    }
+    return sort @out;
 }
 
 sub peer_exists {
