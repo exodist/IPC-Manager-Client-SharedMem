@@ -3,6 +3,21 @@
     - Add [PruneCruft] to dist.ini so build artifacts (blib/,
       pm_to_blib, MYMETA.*) no longer leak into release tarballs.
 
+    - Fix SIGKILL-stale-peer leak in the SharedMem clients map.  When
+      a client died via SIGKILL (or segfault, OOM, parent-exit
+      cascade -- anything bypassing Perl's DESTROY) its shared-memory
+      registration persisted forever, so the next process trying to
+      register with the same id croaked 'Client <id> already exists'.
+      Three-pronged fix mirroring IPC::Manager's AI_DOCS plan for the
+      same defect: (a) init() reaps the stale entry when the recorded
+      pid is certain-dead (pid_is_running == 0) and proceeds with a
+      fresh registration; (b) peer_left() is implemented as an
+      opportunistic sweep of every dead-pid entry plus its messages
+      and stats; (c) peers() filters dead-pid entries so peer_delta
+      in IPC::Manager::Role::Service actually fires peer_left.
+      Foreign-but-running pids and live local pids remain treated as
+      legitimate collisions.
+
 0.000027  2026-04-25 01:49:50-07:00 America/Los_Angeles
 
     - Mirror the IPC-Manager test split: drop the aggregate t/SharedMem.t in favour of one .t file per subtest under t/SharedMem/, calling IPC::Manager::Test->run_one() so prove -j parallelises across subtests instead of running them serially. Bumps the IPC::Manager prereq to 0.000033 for run_one()
