@@ -302,14 +302,6 @@ sub init {
         else {
             if (my $existing = $state->{clients}{$id}) {
                 my $epid = $existing->{pid};
-                # Reap-and-replace: if the existing registration belongs
-                # to a pid that is genuinely gone (SIGKILL, segfault,
-                # OOM, parent-exit cascade -- anything that bypasses
-                # Perl's DESTROY) drop the stale entry and proceed with
-                # a fresh registration.  Foreign-but-running pids
-                # (pid_is_running == -1) and live local pids
-                # (pid_is_running == 1) are legitimate collisions and
-                # still croak.
                 if ($epid && pid_is_running($epid) == 0) {
                     delete $state->{clients}{$id};
                     delete $state->{messages}{$id};
@@ -325,8 +317,6 @@ sub init {
         }
 
         $state->{clients}{$id}{pid} = $$;
-
-        # Registration overrides any in-flight suspension: the peer is back.
         delete $state->{clients}{$id}{suspend_expires_at};
 
         $self->_commit($state);
@@ -411,10 +401,6 @@ sub peers {
     my @out;
     for my $peer_id (keys %{$state->{clients}}) {
         next if $peer_id eq $my_id;
-        # Skip peers whose recorded pid is genuinely gone.  peer_left
-        # will reap them on the next service tick.  Foreign-but-running
-        # pids (pid_is_running == -1) stay listed -- only certain-dead
-        # entries (== 0) are filtered.
         my $data = $state->{clients}{$peer_id};
         my $pid  = $data ? $data->{pid} : undef;
         next if $pid && pid_is_running($pid) == 0;
@@ -423,12 +409,6 @@ sub peers {
     return sort @out;
 }
 
-# Opportunistic sweep of stale peer registrations.  Called by
-# IPC::Manager::Role::Service whenever peer_delta reports a peer left.
-# Walks the clients map, removes entries whose recorded pid is gone
-# (pid_is_running == 0), and cleans up their messages + stats.  Skips
-# self and never reaps foreign-but-running pids (pid_is_running == -1)
-# or live local pids (== 1).  Returns the number of entries reaped.
 sub peer_left {
     my $self = shift;
 
@@ -550,7 +530,6 @@ sub pre_suspend_hook {
             $self->_commit($state);
         }
         else {
-            # Nothing to record against -- release the lock.
             $self->_unlock;
         }
         1;
