@@ -1,36 +1,8 @@
 {{$NEXT}}
 
-    - Persist suspend deadlines in the SharedMem clients map.  When
-      a peer calls suspend(expires_at => $epoch) (or expires_in =>
-      $seconds) the deadline is now written into the shared-memory
-      state under clients->{$id}{suspend_expires_at}, mirroring the
-      JSONFile / LocalMemory / Base::FS / Base::DBI implementations.
-      Adds the pre_suspend_hook and peer_suspend_expires overrides;
-      init() clears the slot on fresh registration / reconnect so a
-      returning peer no longer looks suspended.  Bumps the
-      IPC::Manager prereq to 0.000037 so downstream users get the
-      Service::Handle SIGKILL/expiry detection logic (which calls
-      peer_suspend_expires universally) plus the IPC::Manager::Test
-      ready_file atomic-rename fixture fixes that the test suite
-      depends on.
-
-    - Add [PruneCruft] to dist.ini so build artifacts (blib/,
-      pm_to_blib, MYMETA.*) no longer leak into release tarballs.
-
-    - Fix SIGKILL-stale-peer leak in the SharedMem clients map.  When
-      a client died via SIGKILL (or segfault, OOM, parent-exit
-      cascade -- anything bypassing Perl's DESTROY) its shared-memory
-      registration persisted forever, so the next process trying to
-      register with the same id croaked 'Client <id> already exists'.
-      Three-pronged fix mirroring IPC::Manager's AI_DOCS plan for the
-      same defect: (a) init() reaps the stale entry when the recorded
-      pid is certain-dead (pid_is_running == 0) and proceeds with a
-      fresh registration; (b) peer_left() is implemented as an
-      opportunistic sweep of every dead-pid entry plus its messages
-      and stats; (c) peers() filters dead-pid entries so peer_delta
-      in IPC::Manager::Role::Service actually fires peer_left.
-      Foreign-but-running pids and live local pids remain treated as
-      legitimate collisions.
+    - Persist suspend deadlines in SharedMem clients map under clients->{$id}{suspend_expires_at}; add pre_suspend_hook + peer_suspend_expires overrides; init() clears slot on fresh registration; bump IPC::Manager prereq to 0.000037
+    - Add [PruneCruft] to dist.ini so blib/, pm_to_blib, MYMETA.* stop leaking into release tarballs
+    - Fix SIGKILL-stale-peer leak in SharedMem clients map: init() reaps dead-pid entry on registration; peer_left() sweeps dead-pid entries + messages + stats; peers() filters dead-pid entries so peer_delta fires peer_left
 
 0.000027  2026-04-25 01:49:50-07:00 America/Los_Angeles
 
