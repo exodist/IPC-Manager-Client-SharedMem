@@ -487,7 +487,7 @@ my %WriteMakefileArgs = (
   "NAME" => "IPC::Manager::Client::SharedMem",
   "PREREQ_PM" => {
     "Carp" => 0,
-    "IPC::Manager" => "0.000033",
+    "IPC::Manager" => "0.000037",
     "IPC::SysV" => "2.09",
     "Object::HashBase" => "0.015",
     "parent" => 0
@@ -507,7 +507,7 @@ my %WriteMakefileArgs = (
 
 my %FallbackPrereqs = (
   "Carp" => 0,
-  "IPC::Manager" => "0.000033",
+  "IPC::Manager" => "0.000037",
   "IPC::SysV" => "2.09",
   "Object::HashBase" => "0.015",
   "Test2::API" => "1.302219",
