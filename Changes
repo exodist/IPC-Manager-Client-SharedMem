@@ -1,5 +1,19 @@
 {{$NEXT}}
 
+    - Persist suspend deadlines in the SharedMem clients map.  When
+      a peer calls suspend(expires_at => $epoch) (or expires_in =>
+      $seconds) the deadline is now written into the shared-memory
+      state under clients->{$id}{suspend_expires_at}, mirroring the
+      JSONFile / LocalMemory / Base::FS / Base::DBI implementations.
+      Adds the pre_suspend_hook and peer_suspend_expires overrides;
+      init() clears the slot on fresh registration / reconnect so a
+      returning peer no longer looks suspended.  Bumps the
+      IPC::Manager prereq to 0.000037 so downstream users get the
+      Service::Handle SIGKILL/expiry detection logic (which calls
+      peer_suspend_expires universally) plus the IPC::Manager::Test
+      ready_file atomic-rename fixture fixes that the test suite
+      depends on.
+
     - Add [PruneCruft] to dist.ini so build artifacts (blib/,
       pm_to_blib, MYMETA.*) no longer leak into release tarballs.
 
