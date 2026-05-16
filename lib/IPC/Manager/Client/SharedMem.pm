@@ -326,6 +326,9 @@ sub init {
 
         $state->{clients}{$id}{pid} = $$;
 
+        # Registration overrides any in-flight suspension: the peer is back.
+        delete $state->{clients}{$id}{suspend_expires_at};
+
         $self->_commit($state);
         1;
     };
@@ -523,6 +526,51 @@ sub all_stats {
         $out{$id} = $state->{stats}{$id};
     }
     return \%out;
+}
+
+# --- Suspend ---
+
+sub pre_suspend_hook {
+    my $self = shift;
+    my (%params) = @_;
+
+    my $expires_at = $params{expires_at};
+    return unless defined $expires_at;
+
+    my $state;
+    unless (eval { $state = $self->_lock_write; 1 }) {
+        warn $@;
+        return;
+    }
+
+    my $ok = eval {
+        my $entry = $state->{clients}{$self->{id}};
+        if ($entry) {
+            $entry->{suspend_expires_at} = $expires_at + 0;
+            $self->_commit($state);
+        }
+        else {
+            # Nothing to record against -- release the lock.
+            $self->_unlock;
+        }
+        1;
+    };
+
+    unless ($ok) {
+        my $err = $@;
+        $self->_unlock;
+        warn $err;
+    }
+}
+
+sub peer_suspend_expires {
+    my $self = shift;
+    my ($peer_id) = @_;
+    return undef unless defined $peer_id && length $peer_id;
+
+    my $state = $self->_lock_read;
+    my $entry = $state->{clients}{$peer_id} or return undef;
+    return $entry->{suspend_expires_at};
 }
 
 # --- Disconnect ---
