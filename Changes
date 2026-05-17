@@ -1,5 +1,7 @@
 {{$NEXT}}
 
+0.000028  2026-05-16 18:28:00-07:00 America/Los_Angeles
+
     - Persist suspend deadlines in SharedMem clients map under clients->{$id}{suspend_expires_at}; add pre_suspend_hook + peer_suspend_expires overrides; init() clears slot on fresh registration; bump IPC::Manager prereq to 0.000037
     - Add [PruneCruft] to dist.ini so blib/, pm_to_blib, MYMETA.* stop leaking into release tarballs
     - Fix SIGKILL-stale-peer leak in SharedMem clients map: init() reaps dead-pid entry on registration; peer_left() sweeps dead-pid entries + messages + stats; peers() filters dead-pid entries so peer_delta fires peer_left
